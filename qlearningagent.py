@@ -20,8 +20,43 @@ class QLearningAgent(BaseAgent):
 
         """
         # Create a random number generator with the provided seed to seed the agent for reproducibility.
-
+        print("passed in Keys in agent_info:", agent_info.keys())
         # Store the parameters provided in agent_init_info.
+        # self.num_actions = agent_info["num_actions"]
+        # self.num_states = agent_info["num_states"]
+        # self.epsilon = agent_info["epsilon"]
+        # self.step_size = agent_info["step_size"]
+        # self.discount = agent_info["discount"]
+        # self.rand_generator = np.random.RandomState(agent_info["seed"])
+        # self.c = agent_info.get("degree of exploration", 0.2)
+        # self.exploration_method = agent_info.get("exploration method", "UCB")
+        #
+        # # Create an array for action-value estimates and initialize it to zero.
+        # self.q = 0.5 * np.ones((self.num_states, self.num_actions))  # The array of action-value estimates.
+        # self.delta = 0
+        # self.total_steps = 0
+        # self.SAcounter = np.zeros(
+        #     (self.num_states, self.num_actions))  # The array of times each state-action pair is chosen.
+        # self.UCB = math.inf * np.ones(
+        #     (self.num_states, self.num_actions))  # The array of upper-confidence-bounds for each state-action pair.
+
+    def agent_init(self, agent_info):
+        """Setup for the agent called when the experiment first starts.
+
+        Args:
+        agent_init_info (dict), the parameters used to initialize the agent. The dictionary contains:
+        {
+            num_states (int): The number of states,
+            num_actions (int): The number of actions,
+            epsilon (float): The epsilon parameter for exploration,
+            step_size (float): The step-size,
+            discount (float): The discount factor,
+        }
+
+        """
+        print("passed in Keys in agent_info:", agent_info.keys())
+
+        # Store the parameters provided in agent_info.
         self.num_actions = agent_info["num_actions"]
         self.num_states = agent_info["num_states"]
         self.epsilon = agent_info["epsilon"]
@@ -39,37 +74,6 @@ class QLearningAgent(BaseAgent):
             (self.num_states, self.num_actions))  # The array of times each state-action pair is chosen.
         self.UCB = math.inf * np.ones(
             (self.num_states, self.num_actions))  # The array of upper-confidence-bounds for each state-action pair.
-
-    def agent_init(self, agent_info):
-        """Setup for the agent called when the experiment first starts.
-
-        Args:
-        agent_init_info (dict), the parameters used to initialize the agent. The dictionary contains:
-        {
-            num_states (int): The number of states,
-            num_actions (int): The number of actions,
-            epsilon (float): The epsilon parameter for exploration,
-            step_size (float): The step-size,
-            discount (float): The discount factor,
-        }
-
-        """
-        # Store the parameters provided in agent_info.
-        self.num_actions = agent_info["num_actions"]
-        self.num_states = agent_info["num_states"]
-        self.epsilon = agent_info["epsilon"]
-        self.step_size = agent_info["step_size"]
-        self.discount = agent_info["discount"]
-        self.rand_generator = np.random.RandomState(agent_info["seed"])
-        self.c = agent_info.get("degree of exploration", 0.2)
-        self.exploration_method = agent_info.get("exploration method", "UCB")
-
-        # Create an array for action-value estimates and initialize it to zero.
-        self.q = 0.5 * np.ones((self.num_states, self.num_actions))  # The array of action-value estimates.
-        self.delta = 0
-        self.total_steps = 0
-        self.SAcounter = np.zeros(
-            (self.num_states, self.num_actions))  # The array of times each state-action pair is chosen.
 
     def agent_start(self, observation):
         """The first method called when the episode starts, called after
