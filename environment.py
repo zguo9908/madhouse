@@ -5,37 +5,11 @@ import utils
 
 
 class GiveUpEnvironment:
-    def __init__(self, env_info={}):
-        print("passed in Keys in env_info:", env_info.keys())
-        # self.StateStruct = env_info.get("state representation structure", "regular")
-        # self.giveup_reward = env_info.get("reward amount in pursuit", 10)
-        # self.dt = env_info.get("fundamental timestep", 0.01)
-        # self.gamma = env_info.get("gamma", 0.9)
-        # self.rand_generator = np.random.RandomState(env_info.get("seed", 0))
-        # self.gu_dur = env_info.get("gu duration", 28)
-        # self.consmp_dur = env_info.get("consumption duration", 0)
-        # self.mean_reward_time = env_info.get("exponential distribution mean", 3)
-        # self.overall_reward_prob = env_info.get("overall reward probability", 0.9)
-        # self.bg_dur = env_info.get("bg duration", 2)
-        #
-        # if (self.StateStruct == "dilating"):
-        #     self.BGTimeArray = construct_dilating_states(self.bg_dur, self.dt, self.gamma)
-        #     self.PSTimeArray = construct_dilating_states(self.gu_dur, self.dt, self.gamma)
-        #     self.PSMinDelay = FindStateStart(self.PSTimeArray, self.PSMinDelay)
-        #     self.BGRewardTime = FindStateStart(self.BGTimeArray, self.BGRewardTime)
-        # elif (self.StateStruct == "regular"):
-        #     self.PSTimeArray = np.round(np.arange(0, self.gu_dur + self.bg_dur, self.dt),
-        #                                 utils.PrecisionOf(self.dt) + 1)
-        # else:
-        #     raise Exception(
-        #         str(self.StateStruct) + ' not in recognized state representation structures ["regular", "dilating"]!')
-        #
-        # PDFCDF = utils.pursuit_init(self.PSTimeArray, self.mean_reward_time, self.overall_reward_prob)
-        # self.PSRewardTimePDF = PDFCDF[0]
-        # self.PSRewardTimeCDF = PDFCDF[1]
-        # self.num_states = len(self.PSTimeArray)
-
-        # function that finds the real optimal policy (that maximizes the global reward rate)
+    def __init__(self):
+        self.reward_state_term = None
+        self.current_state1d = None
+        self.current_state3d = None
+        self.num_trials = 0
 
     def env_init(self, env_info={}):
         """Setup for the environment called when the experiment first starts.
@@ -45,15 +19,15 @@ class GiveUpEnvironment:
         """
         print("passed in Keys in env_info:", env_info.keys())
         self.StateStruct = env_info.get("state representation structure", "regular")
-        self.giveup_reward = env_info.get("reward amount in pursuit", 10)
-        self.dt = env_info.get("fundamental timestep", 0.01)
-        self.gamma = env_info.get("gamma", 0.9)
-        self.rand_generator = np.random.RandomState(env_info.get("seed", 0))
-        self.gu_dur = env_info.get("gu duration", 28)
-        self.consmp_dur = env_info.get("consumption duration", 0)
-        self.mean_reward_time = env_info.get("exponential distribution mean", 3)
-        self.overall_reward_prob = env_info.get("overall reward probability", 0.9)
-        self.bg_dur = env_info.get("bg duration", 2)
+        self.giveup_reward = env_info.get("reward amount in pursuit")
+        self.dt = env_info.get("fundamental timestep")
+        self.gamma = env_info.get("gamma")
+        self.rand_generator = np.random.RandomState(env_info.get("seed"))
+        self.gu_dur = env_info.get("gu duration")
+        self.consmp_dur = env_info.get("consumption duration")
+        self.mean_reward_time = env_info.get("exponential distribution scale")
+        self.overall_reward_prob = env_info.get("overall reward probability")
+        self.bg_dur = env_info.get("bg duration")
 
         if (self.StateStruct == "dilating"):
             self.BGTimeArray = construct_dilating_states(self.bg_dur, self.dt, self.gamma)
@@ -99,7 +73,7 @@ class GiveUpEnvironment:
 
         self.current_state1d = self.state1d(self.current_state3d)
         beh_state, time_passed, reward_collected = self.current_state3d
-        # Bg or Pursuit or consumption, Time elasped in that state, Collected reward
+        # Bg or Pursuit (or consumption), Time elasped in that state, Collected reward
 
         reward = 0  # default reward is 0
         num_rewards = 0  # default number of reward is 0. # The number of rewards has nothing to do with reward amount
@@ -118,36 +92,60 @@ class GiveUpEnvironment:
             # if leave/give up, then jump to the first state in the pursuit port
             elif action == 1:
                 beh_state, time_passed, reward_collected = 0, 0, 0
+                self.num_trials += 1
+                print(f'current num trials is {self.num_trials}')
             else:
                 raise Exception(str(action) + " not in recognized actions [0: Wait, 1: Give up and leave]!")
 
         # inside pursuit period
         elif beh_state == 1:
-            if (action == 0):
+            if action == 0 or int(action) ==0:
                 if isInBounds(time_passed, self.PSTimeArray[-1]):
                     NextIndex = utils.FindIndexOfTime(self.PSTimeArray, time_passed) + 1
                     time_passed = self.PSTimeArray[NextIndex]
 
+            elif reward_collected == 1:
+                print('going to start new trial')
+                beh_state, time_passed, reward_collected = 0, 0, 0
+                self.num_trials += 1
+
             # if leave/give up, then calculate reward probability
             # if reward is given, enter consumption state (2), start consumption time count
-            elif (action == 1):
+            elif action == 1:
                 Pr_Reward = self.PSRewardTimeCDF[utils.FindIndexOfTime(self.PSTimeArray, time_passed)]
-                rand = self.rand_generator.uniform(low=0, high=1, size=1)
-                if (rand < Pr_Reward):
-                    reward = self.PSRewardAmount
-                    num_rewards = 1
-                    beh_state, time_passed, reward_collected = 0, 0, 1
-                else:
+                # [0,1]
+                rand = self.rand_generator.uniform(low=0, high=1, size=1)[0]
+                print(f'current reward prob is {Pr_Reward}')
+                if isInBounds(time_passed, self.PSTimeArray[-1]):
+                    NextIndex = utils.FindIndexOfTime(self.PSTimeArray, time_passed) + 1
+                    if (rand < Pr_Reward):
+                        print(f"gets reward at {time_passed}!")
+                        # print(time_passed)
+                        reward = self.giveup_reward
+                        time_passed = self.PSTimeArray[NextIndex]
+                        beh_state, time_passed, reward_collected = 1, time_passed, 1
+
+                        time_passed = self.PSTimeArray[NextIndex]
+                        print(f'time passed in ps is {time_passed}')
+
+                    else:
+                        beh_state, time_passed, reward_collected = 0, 0, 0
+                if not isInBounds(time_passed, self.PSTimeArray[-1]):
+                    print('missed trial')
                     beh_state, time_passed, reward_collected = 0, 0, 0
+                    self.num_trials += 1
             else:
+                print(action)
                 raise Exception(str(action) + " not in recognized actions [0: Wait, 1: Give up and leave]!")
 
 
         # assign the new state to the environment object
         self.current_state3d = beh_state, time_passed, reward_collected
+        # print(f'curren 3d state is {self.current_state3d}')
         self.current_state1d = self.state1d(self.current_state3d)
         termination = False
         self.reward_state_term = (reward, self.current_state1d, termination)
+        # print(f'current state1d after stepping is {self.current_state1d}')
         return self.reward_state_term
 
     def env_cleanup(self):

@@ -16,5 +16,6 @@ def PrecisionOf(dt):
 def FindIndexOfTime(TimeArray, TargetTimestamp):
     FindIndex = np.where(TimeArray == TargetTimestamp)
     IndexArray = FindIndex[0]
+
     index = IndexArray[0]
     return index
