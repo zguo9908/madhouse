@@ -38,6 +38,7 @@ class QLearningAgent(BaseAgent):
 
         # Create an array for action-value estimates and initialize it to zero.
         self.q = 0.5 * np.ones((self.num_states, self.num_actions))  # The array of action-value estimates.
+
         self.SAcounter = np.zeros(
             (self.num_states, self.num_actions))  # The array of times each state-action pair is chosen.
         self.UCB = math.inf * np.ones(
@@ -89,6 +90,11 @@ class QLearningAgent(BaseAgent):
         """
 
         state = observation
+        # print("Debug Info: size of self.q:", self.q.shape)
+        # print("Debug Info: state:", state)
+        if state >= self.q.shape[0]:
+            print('debug here')
+            print(state)
         current_q = self.q[state, :]
 
         if (self.exploration_method == "epsilon-greedy"):

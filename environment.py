@@ -32,6 +32,9 @@ class GiveUpEnvironment:
         if (self.StateStruct == "dilating"):
             self.BGTimeArray = construct_dilating_states(self.bg_dur, self.dt, self.gamma)
             self.PSTimeArray = construct_dilating_states(self.gu_dur, self.dt, self.gamma)
+            print(f'bg state num {len(self.BGTimeArray)}')
+            print(f'ps state num {len(self.PSTimeArray)}')
+
         elif (self.StateStruct == "regular"):
             self.BGTimeArray = np.round(np.arange(0, self.bg_dur, self.dt), utils.PrecisionOf(self.dt))
             self.PSTimeArray = np.round(np.arange(0, self.gu_dur + self.bg_dur, self.dt),
@@ -43,7 +46,7 @@ class GiveUpEnvironment:
         PDFCDF = utils.pursuit_init(self.PSTimeArray, self.mean_reward_time, self.overall_reward_prob)
         self.PSRewardTimePDF = PDFCDF[0]
         self.PSRewardTimeCDF = PDFCDF[1]
-        self.num_states = len(self.PSTimeArray)
+        self.num_states = len(self.BGTimeArray) + len(self.PSTimeArray)
 
         # function that finds the real optimal policy (that maximizes the global reward rate)
     def env_start(self):
@@ -77,7 +80,6 @@ class GiveUpEnvironment:
 
         reward = 0  # default reward is 0
         num_rewards = 0  # default number of reward is 0. # The number of rewards has nothing to do with reward amount
-
         # still in background time
         if beh_state == 0:
             # stay within bg time
@@ -88,26 +90,36 @@ class GiveUpEnvironment:
                 # if bg passes, go to pursuit state
                 if not isInBounds(time_passed, self.BGTimeArray[-1]):
                     beh_state, time_passed, reward_collected = 1, 0, 0
+                    print('resetting time to 0')
 
             # if leave/give up, then jump to the first state in the pursuit port
             elif action == 1:
                 beh_state, time_passed, reward_collected = 0, 0, 0
                 self.num_trials += 1
-                print(f'current num trials is {self.num_trials}')
+             #   print(f'current num trials is {self.num_trials}')
             else:
                 raise Exception(str(action) + " not in recognized actions [0: Wait, 1: Give up and leave]!")
 
         # inside pursuit period
         elif beh_state == 1:
-            if action == 0 or int(action) ==0:
+            print(f'this is the time that has passed!{time_passed}')
+            print(f'bg time array {self.BGTimeArray}')
+            print(f'ps time array {self.PSTimeArray}')
+            if not isInBounds(time_passed, self.PSTimeArray[-1]):
+                print('missed trial')
+                beh_state, time_passed, reward_collected = 0, 0, 0
+                self.num_trials += 1
+
+            if action == 0:
                 if isInBounds(time_passed, self.PSTimeArray[-1]):
                     NextIndex = utils.FindIndexOfTime(self.PSTimeArray, time_passed) + 1
                     time_passed = self.PSTimeArray[NextIndex]
 
-            elif reward_collected == 1:
-                print('going to start new trial')
+            if reward_collected == 1:
+             #   print('going to start new trial')
                 beh_state, time_passed, reward_collected = 0, 0, 0
                 self.num_trials += 1
+
 
             # if leave/give up, then calculate reward probability
             # if reward is given, enter consumption state (2), start consumption time count
@@ -115,18 +127,18 @@ class GiveUpEnvironment:
                 Pr_Reward = self.PSRewardTimeCDF[utils.FindIndexOfTime(self.PSTimeArray, time_passed)]
                 # [0,1]
                 rand = self.rand_generator.uniform(low=0, high=1, size=1)[0]
-                print(f'current reward prob is {Pr_Reward}')
+             #   print(f'current reward prob is {Pr_Reward}')
                 if isInBounds(time_passed, self.PSTimeArray[-1]):
                     NextIndex = utils.FindIndexOfTime(self.PSTimeArray, time_passed) + 1
                     if (rand < Pr_Reward):
-                        print(f"gets reward at {time_passed}!")
+                      #  print(f"gets reward at {time_passed}!")
                         # print(time_passed)
                         reward = self.giveup_reward
                         time_passed = self.PSTimeArray[NextIndex]
                         beh_state, time_passed, reward_collected = 1, time_passed, 1
 
                         time_passed = self.PSTimeArray[NextIndex]
-                        print(f'time passed in ps is {time_passed}')
+                      #  print(f'time passed in ps is {time_passed}')
 
                     else:
                         beh_state, time_passed, reward_collected = 0, 0, 0
@@ -135,17 +147,19 @@ class GiveUpEnvironment:
                     beh_state, time_passed, reward_collected = 0, 0, 0
                     self.num_trials += 1
             else:
-                print(action)
-                raise Exception(str(action) + " not in recognized actions [0: Wait, 1: Give up and leave]!")
+                pass
 
 
         # assign the new state to the environment object
         self.current_state3d = beh_state, time_passed, reward_collected
         # print(f'curren 3d state is {self.current_state3d}')
         self.current_state1d = self.state1d(self.current_state3d)
+       # print(f'this is current state {self.current_state1d}')
         termination = False
         self.reward_state_term = (reward, self.current_state1d, termination)
         # print(f'current state1d after stepping is {self.current_state1d}')
+        # print(f'current state3d after stepping is {self.current_state3d}')
+
         return self.reward_state_term
 
     def env_cleanup(self):

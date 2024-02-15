@@ -73,7 +73,7 @@ def test_reward():
     env = GiveUpEnvironment()
     # matplotlib.use('Agg')
     env.env_init(env_info)
-
+    print(env.num_states)
     env.current_state3d = (0, 1.2, 0)
     reward_state_term = env.env_step(1)
     print(env.current_state3d)
